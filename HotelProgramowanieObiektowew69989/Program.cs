@@ -1,22 +1,10 @@
-﻿// Projekt implementacji bazy danych hotelu w technologii .NET
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace HotelManagement
 {
-    // Interfejs bazowy CRUD z metodami HTTP
-    public interface IRepository<T>
-    {
-        void Post(T entity); // Dodawanie (Create)
-        T Get(int id); // Odczyt pojedynczego elementu
-        IEnumerable<T> GetAll(); // Odczyt wszystkich elementów
-        void Put(int id, T entity); // Aktualizacja (Update)
-        void Delete(int id); // Usunięcie
-    }
-
-    // Klasa reprezentująca Pokój w hotelu
+    // Modele danych
     public class Room
     {
         public int Id { get; set; }
@@ -24,7 +12,6 @@ namespace HotelManagement
         public bool IsAvailable { get; set; }
     }
 
-    // Klasa reprezentująca Rezerwację
     public class Reservation
     {
         public int Id { get; set; }
@@ -34,7 +21,6 @@ namespace HotelManagement
         public DateTime CheckOut { get; set; }
     }
 
-    // Klasa reprezentująca Gościa
     public class Guest
     {
         public int Id { get; set; }
@@ -42,134 +28,100 @@ namespace HotelManagement
         public string Email { get; set; }
     }
 
-    // Implementacja bazowego repozytorium w pamięci
-    public class InMemoryRepository<T> : IRepository<T>
+    // Klasa bazy danych
+    public class HotelDatabase
     {
-        private readonly List<T> _items = new List<T>();
-        private int _currentId = 1;
+        private List<Room> Rooms = new List<Room>();
+        private List<Reservation> Reservations = new List<Reservation>();
+        private List<Guest> Guests = new List<Guest>();
 
-        public void Post(T entity)
+        // Metody zarządzania danymi
+        public void AddRoom(Room room)
         {
-            var property = typeof(T).GetProperty("Id");
-            if (property != null)
+            room.Id = Rooms.Count > 0 ? Rooms.Max(r => r.Id) + 1 : 1;
+            Rooms.Add(room);
+        }
+
+        public void AddReservation(Reservation reservation)
+        {
+            reservation.Id = Reservations.Count > 0 ? Reservations.Max(r => r.Id) + 1 : 1;
+            Reservations.Add(reservation);
+        }
+
+        public void AddGuest(Guest guest)
+        {
+            guest.Id = Guests.Count > 0 ? Guests.Max(g => g.Id) + 1 : 1;
+            Guests.Add(guest);
+        }
+
+        public Room GetRoom(int id) => Rooms.FirstOrDefault(r => r.Id == id);
+
+        public IEnumerable<Room> GetAllRooms() => Rooms;
+
+        public Reservation GetReservation(int id) => Reservations.FirstOrDefault(r => r.Id == id);
+
+        public IEnumerable<Reservation> GetAllReservations() => Reservations;
+
+        public Guest GetGuest(int id) => Guests.FirstOrDefault(g => g.Id == id);
+
+        public IEnumerable<Guest> GetAllGuests() => Guests;
+
+        public void UpdateRoom(int id, Room updatedRoom)
+        {
+            var room = GetRoom(id);
+            if (room != null)
             {
-                property.SetValue(entity, _currentId++);
-                _items.Add(entity);
+                room.RoomNumber = updatedRoom.RoomNumber;
+                room.IsAvailable = updatedRoom.IsAvailable;
             }
         }
 
-        public T Get(int id)
-        {
-            return _items.FirstOrDefault(item => (int)typeof(T).GetProperty("Id")?.GetValue(item) == id);
-        }
+        public void DeleteRoom(int id) => Rooms.RemoveAll(r => r.Id == id);
 
-        public IEnumerable<T> GetAll()
-        {
-            return _items;
-        }
+        public void DeleteReservation(int id) => Reservations.RemoveAll(r => r.Id == id);
 
-        public void Put(int id, T entity)
-        {
-            var index = _items.FindIndex(item => (int)typeof(T).GetProperty("Id")?.GetValue(item) == id);
-            if (index >= 0)
-            {
-                _items[index] = entity;
-                typeof(T).GetProperty("Id")?.SetValue(entity, id);
-            }
-            else
-            {
-                throw new Exception("Item not found");
-            }
-        }
-
-        public void Delete(int id)
-        {
-            var item = Get(id);
-            if (item != null)
-            {
-                _items.Remove(item);
-            }
-            else
-            {
-                throw new Exception("Item not found");
-            }
-        }
+        public void DeleteGuest(int id) => Guests.RemoveAll(g => g.Id == id);
     }
 
-    // Symulacja kontrolera HTTP dla zarządzania pokojami
-    public class RoomController
-    {
-        private readonly IRepository<Room> _repository;
-
-        public RoomController(IRepository<Room> repository)
-        {
-            _repository = repository;
-        }
-
-        public void HttpPost(Room room)
-        {
-            _repository.Post(room);
-        }
-
-        public Room HttpGet(int id)
-        {
-            return _repository.Get(id);
-        }
-
-        public IEnumerable<Room> HttpGetAll()
-        {
-            return _repository.GetAll();
-        }
-
-        public void HttpPut(int id, Room room)
-        {
-            _repository.Put(id, room);
-        }
-
-        public void HttpDelete(int id)
-        {
-            _repository.Delete(id);
-        }
-    }
-
+    // Główna aplikacja
     class Program
     {
         static void Main(string[] args)
         {
-            // Dependency Injection
-            IRepository<Room> roomRepository = new InMemoryRepository<Room>();
-            var roomController = new RoomController(roomRepository);
+            var database = new HotelDatabase();
 
-            try
+            // Dodawanie danych
+            database.AddRoom(new Room { RoomNumber = "101", IsAvailable = true });
+            database.AddRoom(new Room { RoomNumber = "102", IsAvailable = false });
+
+            database.AddGuest(new Guest { FullName = "John Doe", Email = "john.doe@example.com" });
+
+            database.AddReservation(new Reservation
             {
-                // Dodawanie pokoju
-                var room = new Room { RoomNumber = "101", IsAvailable = true };
-                roomController.HttpPost(room);
+                RoomId = 1,
+                GuestName = "John Doe",
+                CheckIn = DateTime.Now,
+                CheckOut = DateTime.Now.AddDays(2)
+            });
 
-                // Odczyt pokoju
-                var readRoom = roomController.HttpGet(1);
-                Console.WriteLine($"Room: {readRoom.RoomNumber}, Available: {readRoom.IsAvailable}");
-
-                // Aktualizacja pokoju
-                readRoom.IsAvailable = false;
-                roomController.HttpPut(1, readRoom);
-
-                // Usunięcie pokoju
-                roomController.HttpDelete(1);
-
-                // Odczyt wszystkich pokoi
-                var allRooms = roomController.HttpGetAll();
-                Console.WriteLine("All Rooms:");
-                foreach (var r in allRooms)
-                {
-                    Console.WriteLine($"Room: {r.RoomNumber}, Available: {r.IsAvailable}");
-                }
+            // Wyświetlanie danych
+            Console.WriteLine("Lista pokoi:");
+            foreach (var room in database.GetAllRooms())
+            {
+                Console.WriteLine($"ID: {room.Id}, Numer: {room.RoomNumber}, Dostępny: {room.IsAvailable}");
             }
-            catch (Exception ex)
+
+            Console.WriteLine("\nLista rezerwacji:");
+            foreach (var reservation in database.GetAllReservations())
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"ID: {reservation.Id}, Pokój ID: {reservation.RoomId}, Gość: {reservation.GuestName}, Od: {reservation.CheckIn}, Do: {reservation.CheckOut}");
+            }
+
+            Console.WriteLine("\nLista gości:");
+            foreach (var guest in database.GetAllGuests())
+            {
+                Console.WriteLine($"ID: {guest.Id}, Imię i nazwisko: {guest.FullName}, Email: {guest.Email}");
             }
         }
     }
 }
-
