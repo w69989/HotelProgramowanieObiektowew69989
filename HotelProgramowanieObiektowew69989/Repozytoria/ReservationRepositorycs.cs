@@ -35,14 +35,6 @@ namespace HotelManagement
             {
                 throw new InvalidOperationException("Pokój nie jest dostępny.");
             }
-            // Sprawdzamy, czy data rezerwacji jest w przyszłości
-            if (reservation.CheckIn <= DateTime.Now)
-            {
-                throw new ArgumentException("Data zameldowania musi być w przyszłości.");
-            }
-
-            reservation.Id = Reservations.Count > 0 ? Reservations.Max(r => r.Id) + 1 : 1;
-            Reservations.Add(reservation);
 
             // Zmiana dostępności pokoju po dokonaniu rezerwacji
             room.IsAvailable = false;
